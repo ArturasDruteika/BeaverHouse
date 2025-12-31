@@ -1,0 +1,37 @@
+# Unity generated folders
+Library/
+Temp/
+Obj/
+Logs/
+MemoryCaptures/
+
+# Builds
+Build/
+Builds/
+
+# User-specific
+UserSettings/EditorUserSettings.asset
+
+# IDE
+.vs/
+.vscode/
+.idea/
+.vscode/
+.history/
+
+# Unity auto-generated files
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Upgrade logs
+UpgradeLog*
