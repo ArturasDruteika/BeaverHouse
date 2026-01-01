@@ -7,7 +7,7 @@ public class WaterSplash : MonoBehaviour
     public ParticleSystem SplashPrefab;
 
     [Header("Tuning")]
-    public float MinSpeedToSplash = 0.5f;
+    public float MinSpeedToSplash = 0.2f;
     public float SplashCooldownSeconds = 0.12f;
     public float WaterSurfaceY = 0.4f;
     public float SpawnHeightOffset = 0.02f;
@@ -16,9 +16,13 @@ public class WaterSplash : MonoBehaviour
     private float _cooldownRemaining;
     private bool _isInWater;
 
+    private Vector3 _previousPosition;
+    private float _flatSpeedFromPosition;
+
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
+        _previousPosition = transform.position;
     }
 
     private void Update()
@@ -27,11 +31,29 @@ public class WaterSplash : MonoBehaviour
         {
             _cooldownRemaining -= Time.deltaTime;
         }
+
+        // Compute horizontal speed from position delta (works with MovePosition).
+        Vector3 currentPosition = transform.position;
+        Vector3 delta = currentPosition - _previousPosition;
+
+        // Horizontal only (ignore vertical bobbing)
+        delta.y = 0f;
+
+        if (Time.deltaTime > 0.0001f)
+        {
+            _flatSpeedFromPosition = delta.magnitude / Time.deltaTime;
+        }
+        else
+        {
+            _flatSpeedFromPosition = 0f;
+        }
+
+        _previousPosition = currentPosition;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.name != "Water")
+        if (!other.CompareTag("Water"))
         {
             return;
         }
@@ -42,7 +64,7 @@ public class WaterSplash : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.gameObject.name != "Water")
+        if (!other.CompareTag("Water"))
         {
             return;
         }
@@ -52,12 +74,7 @@ public class WaterSplash : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
-        if (!_isInWater)
-        {
-            return;
-        }
-
-        if (other.gameObject.name != "Water")
+        if (!other.CompareTag("Water"))
         {
             return;
         }
@@ -77,7 +94,8 @@ public class WaterSplash : MonoBehaviour
             return;
         }
 
-        float flatSpeed = new Vector3(_rigidbody.linearVelocity.x, 0f, _rigidbody.linearVelocity.z).magnitude;
+        float flatSpeed = _flatSpeedFromPosition;
+
         if (!force && flatSpeed < MinSpeedToSplash)
         {
             return;
@@ -91,7 +109,6 @@ public class WaterSplash : MonoBehaviour
 
         ParticleSystem splash = Instantiate(SplashPrefab, spawnPosition, Quaternion.identity);
         splash.Play();
-
         Destroy(splash.gameObject, 2f);
 
         _cooldownRemaining = SplashCooldownSeconds;
