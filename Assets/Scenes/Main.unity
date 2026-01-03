@@ -871,8 +871,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3da0b7a3adee4445b6f072fb4bc8ef3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  _moveSpeed: 5
-  _turnSpeed: 360
+  _mode: 0
+  _groundMoveSpeed: 5
+  _groundTurnSpeed: 360
+  _swimMoveSpeed: 7
+  _swimTurnSpeed: 360
+  _surfaceFollowSpeed: 8
+  _surfaceYOffset: 0
+  _swimDrag: 2.5
+  _underwaterMoveSpeed: 6
+  _underwaterVerticalSpeed: 4
+  _underwaterDrag: 3.5
+  _maxDepth: 4
+  _waterSurfaceTransform: {fileID: 1674989455}
+  _holdToDive: 1
 --- !u!54 &2126446289
 Rigidbody:
   m_ObjectHideFlags: 0
