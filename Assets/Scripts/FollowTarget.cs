@@ -2,17 +2,17 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    public Transform Player;
-    public Vector3 Offset = new Vector3(0f, 1f, -5f);
+    [SerializeField] private Transform _player;
+    [SerializeField] private Vector3 _offset = new Vector3(0f, 1f, -5f);
 
-    void LateUpdate()
+    private void LateUpdate()
     {
-        if (Player == null)
+        if (_player == null)
         {
             return;
         }
 
-        transform.position = Player.position + Offset;
-        transform.LookAt(Player);
+        transform.position = _player.position + _offset;
+        transform.LookAt(_player);
     }
 }

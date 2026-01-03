@@ -5,8 +5,8 @@ using UnityEngine.InputSystem;
 public class BeaverController : MonoBehaviour
 {
     [Header("Movement")]
-    public float MoveSpeed = 5f;
-    public float TurnSpeed = 360f;
+    [SerializeField] private float _moveSpeed = 5f;
+    [SerializeField] private float _turnSpeed = 360f;
 
     private Rigidbody _rigidbody;
     private Vector2 _moveInput;
@@ -31,7 +31,7 @@ public class BeaverController : MonoBehaviour
             inputDirection.Normalize();
         }
 
-        Vector3 movement = inputDirection * MoveSpeed * Time.fixedDeltaTime;
+        Vector3 movement = inputDirection * _moveSpeed * Time.fixedDeltaTime;
         _rigidbody.MovePosition(_rigidbody.position + movement);
 
         if (inputDirection.sqrMagnitude > 0.0001f)
@@ -40,7 +40,7 @@ public class BeaverController : MonoBehaviour
             Quaternion newRotation = Quaternion.RotateTowards(
                 _rigidbody.rotation,
                 targetRotation,
-                TurnSpeed * Time.fixedDeltaTime
+                _turnSpeed * Time.fixedDeltaTime
             );
 
             _rigidbody.MoveRotation(newRotation);

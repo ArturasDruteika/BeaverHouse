@@ -638,7 +638,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74ed4ad99d5cb8041b067f52d0ff1bab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WaterScroll
-  ScrollSpeed: {x: 0.02, y: 0.01}
+  _scrollSpeed: {x: 0.02, y: 0.01}
 --- !u!23 &1674989457
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -815,12 +815,12 @@ Transform:
   m_GameObject: {fileID: 2050203599}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8.5, y: 1, z: 41.9}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 570334291}
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 2126446293}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2050203601
 MonoBehaviour:
@@ -834,8 +834,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5769ce68aaa103146891de3ae7a0d43e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FollowTarget
-  Player: {fileID: 2126446293}
-  Offset: {x: 0, y: 0.2, z: -2}
+  _player: {fileID: 2126446293}
+  _offset: {x: 0, y: 1, z: -5}
 --- !u!1 &2126446287
 GameObject:
   m_ObjectHideFlags: 0
@@ -871,8 +871,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3da0b7a3adee4445b6f072fb4bc8ef3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  MoveSpeed: 5
-  TurnSpeed: 360
+  _moveSpeed: 5
+  _turnSpeed: 360
 --- !u!54 &2126446289
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -989,10 +989,11 @@ Transform:
   m_GameObject: {fileID: 2126446287}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -4.93235, y: 3.6, z: 49.3}
+  m_LocalPosition: {x: -4.93235, y: 5.22, z: 45.88}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 2050203600}
   m_Father: {fileID: 1519423889}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2126446294
@@ -1037,17 +1038,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 159b954387975c94dbe84ea0d627f01c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WaterSplash
-  SplashPrefab: {fileID: 6259541582670049754, guid: da150d4a3af1d8d4eb4517d77e797563, type: 3}
-  MinSpeedToSplash: 0.5
-  SplashCooldownSeconds: 0.12
-  WaterSurfaceY: 0.4
-  SpawnHeightOffset: 0.02
+  _splashPrefab: {fileID: 6259541582670049754, guid: da150d4a3af1d8d4eb4517d77e797563, type: 3}
+  _waterSurfaceTransform: {fileID: 1674989455}
+  _minSpeedToSplash: 0.2
+  _splashCooldownSeconds: 0.12
+  _spawnHeightOffset: 0.02
+  _maxDistanceFromSurfaceToSplash: 0.35
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1443016410}
-  - {fileID: 2050203600}
   - {fileID: 815092319}
   - {fileID: 1735524190}
   - {fileID: 1519423889}

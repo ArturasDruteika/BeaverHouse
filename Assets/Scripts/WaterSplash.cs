@@ -4,13 +4,16 @@ using UnityEngine;
 public class WaterSplash : MonoBehaviour
 {
     [Header("References")]
-    public ParticleSystem SplashPrefab;
+    [SerializeField] private ParticleSystem _splashPrefab;
+    [SerializeField] private Transform _waterSurfaceTransform;
 
     [Header("Tuning")]
-    public float MinSpeedToSplash = 0.2f;
-    public float SplashCooldownSeconds = 0.12f;
-    public float WaterSurfaceY = 0.4f;
-    public float SpawnHeightOffset = 0.02f;
+    [SerializeField] private float _minSpeedToSplash = 0.2f;
+    [SerializeField] private float _splashCooldownSeconds = 0.12f;
+    [SerializeField] private float _spawnHeightOffset = 0.02f;
+
+    [Header("Surface gating (recommended)")]
+    [SerializeField] private float _maxDistanceFromSurfaceToSplash = 0.35f;
 
     private Rigidbody _rigidbody;
     private float _cooldownRemaining;
@@ -32,11 +35,8 @@ public class WaterSplash : MonoBehaviour
             _cooldownRemaining -= Time.deltaTime;
         }
 
-        // Compute horizontal speed from position delta (works with MovePosition).
         Vector3 currentPosition = transform.position;
         Vector3 delta = currentPosition - _previousPosition;
-
-        // Horizontal only (ignore vertical bobbing)
         delta.y = 0f;
 
         if (Time.deltaTime > 0.0001f)
@@ -59,7 +59,7 @@ public class WaterSplash : MonoBehaviour
         }
 
         _isInWater = true;
-        TrySpawnSplash(force: true);
+        TrySpawnSplash(true);
     }
 
     private void OnTriggerExit(Collider other)
@@ -79,12 +79,27 @@ public class WaterSplash : MonoBehaviour
             return;
         }
 
-        TrySpawnSplash(force: false);
+        TrySpawnSplash(false);
+    }
+
+    private float GetSurfaceY()
+    {
+        if (_waterSurfaceTransform != null)
+        {
+            return _waterSurfaceTransform.position.y;
+        }
+
+        return transform.position.y; // fallback to avoid NaNs
     }
 
     private void TrySpawnSplash(bool force)
     {
-        if (SplashPrefab == null)
+        if (!_isInWater)
+        {
+            return;
+        }
+
+        if (_splashPrefab == null)
         {
             return;
         }
@@ -94,23 +109,30 @@ public class WaterSplash : MonoBehaviour
             return;
         }
 
-        float flatSpeed = _flatSpeedFromPosition;
+        if (!force && _flatSpeedFromPosition < _minSpeedToSplash)
+        {
+            return;
+        }
 
-        if (!force && flatSpeed < MinSpeedToSplash)
+        float surfaceY = GetSurfaceY();
+
+        // Only spawn splashes when you are close to the surface.
+        float distToSurface = Mathf.Abs(transform.position.y - surfaceY);
+        if (distToSurface > _maxDistanceFromSurfaceToSplash)
         {
             return;
         }
 
         Vector3 spawnPosition = new Vector3(
             transform.position.x,
-            WaterSurfaceY + SpawnHeightOffset,
+            surfaceY + _spawnHeightOffset,
             transform.position.z
         );
 
-        ParticleSystem splash = Instantiate(SplashPrefab, spawnPosition, Quaternion.identity);
+        ParticleSystem splash = Instantiate(_splashPrefab, spawnPosition, Quaternion.identity);
         splash.Play();
         Destroy(splash.gameObject, 2f);
 
-        _cooldownRemaining = SplashCooldownSeconds;
+        _cooldownRemaining = _splashCooldownSeconds;
     }
 }
