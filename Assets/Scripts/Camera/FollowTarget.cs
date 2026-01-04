@@ -12,7 +12,10 @@ public class CameraController : MonoBehaviour
             return;
         }
 
-        transform.position = _player.position + _offset;
-        transform.LookAt(_player);
+        // Convert offset from local space to world space
+        Vector3 rotatedOffset = _player.TransformDirection(_offset);
+
+        transform.position = _player.position + rotatedOffset;
+        transform.LookAt(_player.position + Vector3.up * _offset.y);
     }
 }
