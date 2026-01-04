@@ -23,23 +23,43 @@ public class BeaverController : MonoBehaviour
     [SerializeField] private float _underwaterTurnSpeed = 140f;
     [SerializeField] private float _underwaterVerticalSpeed = 4f;
     [SerializeField] private float _underwaterDrag = 3.5f;
-    [SerializeField] private float _maxDepth = 4f;
+    [SerializeField] private float _maxDepth = 8f;
+
+    [Header("Underwater Surface Rules")]
+    [SerializeField] private float _surfaceExitDistance = 0.25f;
+    [SerializeField] private float _allowAboveSurface = 0.05f;
 
     [Header("Water References")]
     [SerializeField] private Transform _waterSurfaceTransform;
 
-    [Header("Input (New Input System)")]
-    [SerializeField] private bool _holdToDive = true;
-
     private Rigidbody _rigidbody;
+
     private Vector2 _moveInput;
-    private bool _diveHeld;
-    private bool _upHeld;
+
+    private bool _diveHeld; // Ctrl
+    private bool _upHeld;   // Space
     private bool _isInWater;
 
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
+    }
+
+    private void OnEnable()
+    {
+        ResetInputState();
+    }
+
+    private void OnDisable()
+    {
+        ResetInputState();
+    }
+
+    private void ResetInputState()
+    {
+        _moveInput = Vector2.zero;
+        _diveHeld = false;
+        _upHeld = false;
     }
 
     public void OnMove(InputValue movementValue)
@@ -50,18 +70,6 @@ public class BeaverController : MonoBehaviour
     public void OnDive(InputValue value)
     {
         _diveHeld = value.isPressed;
-
-        if (!_holdToDive && value.isPressed)
-        {
-            if (_mode == MovementMode.SwimSurface)
-            {
-                SetMode(MovementMode.Underwater);
-            }
-            else if (_mode == MovementMode.Underwater)
-            {
-                SetMode(MovementMode.SwimSurface);
-            }
-        }
     }
 
     public void OnUp(InputValue value)
@@ -71,6 +79,14 @@ public class BeaverController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // Bulletproof: sync to real keyboard each physics tick.
+        // This avoids "every second play session" stuck input if Domain Reload is off.
+        if (Keyboard.current != null)
+        {
+            _diveHeld = Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed;
+            _upHeld = Keyboard.current.spaceKey.isPressed;
+        }
+
         UpdateModeFromContext();
 
         switch (_mode)
@@ -91,33 +107,33 @@ public class BeaverController : MonoBehaviour
 
     private void UpdateModeFromContext()
     {
-        if (_isInWater)
-        {
-            if (_mode == MovementMode.Ground)
-            {
-                SetMode(MovementMode.SwimSurface);
-            }
-
-            if (_holdToDive && _diveHeld && _mode == MovementMode.SwimSurface)
-            {
-                SetMode(MovementMode.Underwater);
-            }
-
-            if (_holdToDive && !_diveHeld && _mode == MovementMode.Underwater)
-            {
-                float surfaceY = GetSurfaceY();
-                if (Mathf.Abs(_rigidbody.position.y - surfaceY) < 0.35f)
-                {
-                    SetMode(MovementMode.SwimSurface);
-                }
-            }
-        }
-        else
+        if (!_isInWater)
         {
             if (_mode != MovementMode.Ground)
             {
-                SetMode(MovementMode.Ground);
+                _mode = MovementMode.Ground;
             }
+            return;
+        }
+
+        if (_mode == MovementMode.Ground)
+        {
+            _mode = MovementMode.SwimSurface;
+        }
+
+        // HOLD-TO-DIVE behavior:
+        // - If holding Ctrl at the surface -> go underwater
+        // - If underwater and near surface and not holding Ctrl -> return to surface mode
+        float surfaceY = GetSurfaceY() + _surfaceYOffset;
+        float distToSurface = Mathf.Abs(_rigidbody.position.y - surfaceY);
+
+        if (_mode == MovementMode.SwimSurface && _diveHeld)
+        {
+            _mode = MovementMode.Underwater;
+        }
+        else if (_mode == MovementMode.Underwater && !_diveHeld && distToSurface <= _surfaceExitDistance)
+        {
+            _mode = MovementMode.SwimSurface;
         }
     }
 
@@ -143,7 +159,8 @@ public class BeaverController : MonoBehaviour
 
         ApplyTurn(turn, _swimTurnSpeed);
 
-        Vector3 targetPosition = _rigidbody.position + transform.forward * (forward * _swimMoveSpeed * Time.fixedDeltaTime);
+        Vector3 targetPosition = _rigidbody.position +
+            transform.forward * (forward * _swimMoveSpeed * Time.fixedDeltaTime);
 
         float surfaceY = GetSurfaceY() + _surfaceYOffset;
         targetPosition.y = Mathf.Lerp(_rigidbody.position.y, surfaceY, _surfaceFollowSpeed * Time.fixedDeltaTime);
@@ -156,11 +173,19 @@ public class BeaverController : MonoBehaviour
         _rigidbody.useGravity = false;
         SetDrag(_underwaterDrag);
 
+        // Stop physics from keeping old vertical velocity (prevents "stuck sinking/rising").
+        Vector3 v = _rigidbody.linearVelocity;
+        v.y = 0f;
+        _rigidbody.linearVelocity = v;
+
         float forward = Mathf.Clamp(_moveInput.y, -1f, 1f);
         float turn = Mathf.Clamp(_moveInput.x, -1f, 1f);
 
         ApplyTurn(turn, _underwaterTurnSpeed);
 
+        // Vertical control:
+        // - Space = up
+        // - Ctrl = down
         float vertical = 0f;
         if (_upHeld) vertical += 1f;
         if (_diveHeld) vertical -= 1f;
@@ -171,8 +196,11 @@ public class BeaverController : MonoBehaviour
 
         Vector3 targetPosition = _rigidbody.position + movement;
 
-        float surfaceY = GetSurfaceY();
-        targetPosition.y = Mathf.Clamp(targetPosition.y, surfaceY - _maxDepth, surfaceY - 0.1f);
+        float surfaceY = GetSurfaceY() + _surfaceYOffset;
+
+        float minY = surfaceY - _maxDepth;
+        float maxY = surfaceY + _allowAboveSurface; // allow reaching surface
+        targetPosition.y = Mathf.Clamp(targetPosition.y, minY, maxY);
 
         _rigidbody.MovePosition(targetPosition);
     }
@@ -210,40 +238,24 @@ public class BeaverController : MonoBehaviour
         return _waterSurfaceTransform.position.y;
     }
 
-    private void SetMode(MovementMode newMode)
-    {
-        if (_mode == newMode)
-        {
-            return;
-        }
-
-        _mode = newMode;
-    }
-
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Water"))
+        if (other.CompareTag("Water"))
         {
-            return;
+            _isInWater = true;
         }
-
-        _isInWater = true;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("Water"))
+        if (other.CompareTag("Water"))
         {
-            return;
+            _isInWater = false;
         }
-
-        _isInWater = false;
     }
 
     private void SetDrag(float value)
     {
-        // Use drag if your Unity does not have linearDamping.
-        // If your project uses linearDamping, replace this method body accordingly.
         _rigidbody.linearDamping = value;
     }
 }
