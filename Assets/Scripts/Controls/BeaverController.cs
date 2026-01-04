@@ -9,20 +9,21 @@ public class BeaverController : MonoBehaviour
 
     [Header("Ground Movement")]
     [SerializeField] private float _groundMoveSpeed = 5f;
-    [SerializeField] private float _groundTurnSpeed = 360f;
+    [SerializeField] private float _groundTurnSpeed = 180f;
 
     [Header("Swim Surface Movement")]
-    [SerializeField] private float _swimMoveSpeed = 7f; // faster than ground (as you asked)
-    [SerializeField] private float _swimTurnSpeed = 360f;
+    [SerializeField] private float _swimMoveSpeed = 7f;
+    [SerializeField] private float _swimTurnSpeed = 140f;
     [SerializeField] private float _surfaceFollowSpeed = 8f;
     [SerializeField] private float _surfaceYOffset = 0.0f;
     [SerializeField] private float _swimDrag = 2.5f;
 
     [Header("Underwater Movement")]
     [SerializeField] private float _underwaterMoveSpeed = 6f;
+    [SerializeField] private float _underwaterTurnSpeed = 140f;
     [SerializeField] private float _underwaterVerticalSpeed = 4f;
     [SerializeField] private float _underwaterDrag = 3.5f;
-    [SerializeField] private float _maxDepth = 4f; // meters below surface
+    [SerializeField] private float _maxDepth = 4f;
 
     [Header("Water References")]
     [SerializeField] private Transform _waterSurfaceTransform;
@@ -34,7 +35,6 @@ public class BeaverController : MonoBehaviour
     private Vector2 _moveInput;
     private bool _diveHeld;
     private bool _upHeld;
-
     private bool _isInWater;
 
     private void Awake()
@@ -42,20 +42,17 @@ public class BeaverController : MonoBehaviour
         _rigidbody = GetComponent<Rigidbody>();
     }
 
-    // Called by PlayerInput (Invoke Unity Events)
     public void OnMove(InputValue movementValue)
     {
         _moveInput = movementValue.Get<Vector2>();
     }
 
-    // Bind this to an action (Button). Suggested: LeftCtrl
     public void OnDive(InputValue value)
     {
         _diveHeld = value.isPressed;
 
         if (!_holdToDive && value.isPressed)
         {
-            // Toggle mode when in water
             if (_mode == MovementMode.SwimSurface)
             {
                 SetMode(MovementMode.Underwater);
@@ -67,7 +64,6 @@ public class BeaverController : MonoBehaviour
         }
     }
 
-    // Bind this to an action (Button). Suggested: Space
     public void OnUp(InputValue value)
     {
         _upHeld = value.isPressed;
@@ -109,7 +105,6 @@ public class BeaverController : MonoBehaviour
 
             if (_holdToDive && !_diveHeld && _mode == MovementMode.Underwater)
             {
-                // If not holding dive, we prefer surface mode when near the top.
                 float surfaceY = GetSurfaceY();
                 if (Mathf.Abs(_rigidbody.position.y - surfaceY) < 0.35f)
                 {
@@ -129,131 +124,86 @@ public class BeaverController : MonoBehaviour
     private void ApplyGroundMovement()
     {
         _rigidbody.useGravity = true;
-        _rigidbody.linearDamping = 0f;
+        SetDrag(0f);
 
-        Vector3 inputDirection = new Vector3(_moveInput.x, 0f, _moveInput.y);
-        if (inputDirection.sqrMagnitude > 1f)
-        {
-            inputDirection.Normalize();
-        }
+        float forward = Mathf.Clamp(_moveInput.y, -1f, 1f);
+        float turn = Mathf.Clamp(_moveInput.x, -1f, 1f);
 
-        Vector3 movement = inputDirection * _groundMoveSpeed * Time.fixedDeltaTime;
-        _rigidbody.MovePosition(_rigidbody.position + movement);
-
-        if (inputDirection.sqrMagnitude > 0.0001f)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(inputDirection, Vector3.up);
-            Quaternion newRotation = Quaternion.RotateTowards(
-                _rigidbody.rotation,
-                targetRotation,
-                _groundTurnSpeed * Time.fixedDeltaTime
-            );
-
-            _rigidbody.MoveRotation(newRotation);
-        }
+        ApplyTurn(turn, _groundTurnSpeed);
+        ApplyForwardMove(forward, _groundMoveSpeed);
     }
 
     private void ApplySwimSurfaceMovement()
     {
         _rigidbody.useGravity = false;
-        _rigidbody.linearDamping = _swimDrag;
+        SetDrag(_swimDrag);
 
-        Vector3 inputDirection = new Vector3(_moveInput.x, 0f, _moveInput.y);
-        if (inputDirection.sqrMagnitude > 1f)
-        {
-            inputDirection.Normalize();
-        }
+        float forward = Mathf.Clamp(_moveInput.y, -1f, 1f);
+        float turn = Mathf.Clamp(_moveInput.x, -1f, 1f);
 
-        Vector3 movement = inputDirection * _swimMoveSpeed * Time.fixedDeltaTime;
+        ApplyTurn(turn, _swimTurnSpeed);
 
-        Vector3 targetPosition = _rigidbody.position + movement;
+        Vector3 targetPosition = _rigidbody.position + transform.forward * (forward * _swimMoveSpeed * Time.fixedDeltaTime);
 
         float surfaceY = GetSurfaceY() + _surfaceYOffset;
         targetPosition.y = Mathf.Lerp(_rigidbody.position.y, surfaceY, _surfaceFollowSpeed * Time.fixedDeltaTime);
 
         _rigidbody.MovePosition(targetPosition);
-
-        if (inputDirection.sqrMagnitude > 0.0001f)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(inputDirection, Vector3.up);
-            Quaternion newRotation = Quaternion.RotateTowards(
-                _rigidbody.rotation,
-                targetRotation,
-                _swimTurnSpeed * Time.fixedDeltaTime
-            );
-
-            _rigidbody.MoveRotation(newRotation);
-        }
-
-        if (_holdToDive && _diveHeld)
-        {
-            SetMode(MovementMode.Underwater);
-        }
     }
 
     private void ApplyUnderwaterMovement()
     {
         _rigidbody.useGravity = false;
-        _rigidbody.linearDamping = _underwaterDrag;
+        SetDrag(_underwaterDrag);
 
-        Vector3 horizontalDirection = new Vector3(_moveInput.x, 0f, _moveInput.y);
-        if (horizontalDirection.sqrMagnitude > 1f)
-        {
-            horizontalDirection.Normalize();
-        }
+        float forward = Mathf.Clamp(_moveInput.y, -1f, 1f);
+        float turn = Mathf.Clamp(_moveInput.x, -1f, 1f);
+
+        ApplyTurn(turn, _underwaterTurnSpeed);
 
         float vertical = 0f;
-        if (_upHeld)
-        {
-            vertical += 1f;
-        }
+        if (_upHeld) vertical += 1f;
+        if (_diveHeld) vertical -= 1f;
 
-        if (_diveHeld)
-        {
-            vertical -= 1f;
-        }
-
-        Vector3 movement = horizontalDirection * _underwaterMoveSpeed;
+        Vector3 movement = transform.forward * (forward * _underwaterMoveSpeed);
         movement.y = vertical * _underwaterVerticalSpeed;
         movement *= Time.fixedDeltaTime;
 
         Vector3 targetPosition = _rigidbody.position + movement;
 
         float surfaceY = GetSurfaceY();
-        float minY = surfaceY - _maxDepth;
-        float maxY = surfaceY - 0.1f;
-        targetPosition.y = Mathf.Clamp(targetPosition.y, minY, maxY);
+        targetPosition.y = Mathf.Clamp(targetPosition.y, surfaceY - _maxDepth, surfaceY - 0.1f);
 
         _rigidbody.MovePosition(targetPosition);
+    }
 
-        // Underwater rotation (face horizontal direction if moving)
-        if (horizontalDirection.sqrMagnitude > 0.0001f)
+    private void ApplyTurn(float turnInput, float turnSpeedDeg)
+    {
+        if (Mathf.Abs(turnInput) < 0.0001f)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(horizontalDirection, Vector3.up);
-            Quaternion newRotation = Quaternion.RotateTowards(
-                _rigidbody.rotation,
-                targetRotation,
-                _swimTurnSpeed * Time.fixedDeltaTime
-            );
-
-            _rigidbody.MoveRotation(newRotation);
+            return;
         }
 
-        // If not holding dive and close to surface, go back to surface mode
-        if (_holdToDive && !_diveHeld)
+        float deltaYaw = turnInput * turnSpeedDeg * Time.fixedDeltaTime;
+        Quaternion newRotation = Quaternion.Euler(0f, deltaYaw, 0f) * _rigidbody.rotation;
+        _rigidbody.MoveRotation(newRotation);
+    }
+
+    private void ApplyForwardMove(float forwardInput, float moveSpeed)
+    {
+        if (Mathf.Abs(forwardInput) < 0.0001f)
         {
-            if (Mathf.Abs(_rigidbody.position.y - surfaceY) < 0.35f)
-            {
-                SetMode(MovementMode.SwimSurface);
-            }
+            return;
         }
+
+        Vector3 movement = transform.forward * (forwardInput * moveSpeed * Time.fixedDeltaTime);
+        _rigidbody.MovePosition(_rigidbody.position + movement);
     }
 
     private float GetSurfaceY()
     {
         if (_waterSurfaceTransform == null)
         {
-            // Safe fallback (but you should assign it in Inspector)
             return _rigidbody.position.y;
         }
 
@@ -288,5 +238,12 @@ public class BeaverController : MonoBehaviour
         }
 
         _isInWater = false;
+    }
+
+    private void SetDrag(float value)
+    {
+        // Use drag if your Unity does not have linearDamping.
+        // If your project uses linearDamping, replace this method body accordingly.
+        _rigidbody.linearDamping = value;
     }
 }
