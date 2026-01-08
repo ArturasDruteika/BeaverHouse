@@ -73,10 +73,17 @@ public class SimpleOrbitZoomCamera : MonoBehaviour
         localPos.z = -_distance;
         _camera.localPosition = localPos;
     }
-
     private void HandleOrbitInput()
     {
-        if (!Mouse.current.rightButton.isPressed)
+        if (Mouse.current == null)
+        {
+            return;
+        }
+
+        bool rightHeld = Mouse.current.rightButton.isPressed;
+        bool leftHeld = Mouse.current.leftButton.isPressed;
+
+        if (!rightHeld && !leftHeld)
         {
             if (_lockCursorWhileOrbiting)
             {

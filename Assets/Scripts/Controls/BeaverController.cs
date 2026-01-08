@@ -141,7 +141,9 @@ public class BeaverController : MonoBehaviour
         _rigidbody.useGravity = true;
         SetDrag(0f);
 
-        if (!TryGetCameraBasis(out Vector3 forward, out Vector3 right))
+        bool steerWithCamera = IsSteeringWithCamera();
+
+        if (!TryGetMovementBasis(out Vector3 forward, out Vector3 right))
         {
             return;
         }
@@ -157,17 +159,22 @@ public class BeaverController : MonoBehaviour
         Vector3 delta = moveDir * (_groundMoveSpeed * Time.fixedDeltaTime);
         _rigidbody.MovePosition(_rigidbody.position + delta);
 
-        Quaternion targetRot = Quaternion.LookRotation(moveDir, Vector3.up);
-        Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _groundTurnSpeed * Time.fixedDeltaTime);
-        _rigidbody.MoveRotation(newRot);
+        // IMPORTANT: rotate ONLY when RMB is held (camera steering mode)
+        if (steerWithCamera)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(moveDir, Vector3.up);
+            Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _groundTurnSpeed * Time.fixedDeltaTime);
+            _rigidbody.MoveRotation(newRot);
+        }
     }
-
     private void ApplySwimSurfaceMovement()
     {
         _rigidbody.useGravity = false;
         SetDrag(_swimDrag);
 
-        if (!TryGetCameraBasis(out Vector3 forward, out Vector3 right))
+        bool steerWithCamera = IsSteeringWithCamera();
+
+        if (!TryGetMovementBasis(out Vector3 forward, out Vector3 right))
         {
             return;
         }
@@ -183,9 +190,13 @@ public class BeaverController : MonoBehaviour
             Vector3 delta = moveDir * (_swimMoveSpeed * Time.fixedDeltaTime);
             targetPosition += delta;
 
-            Quaternion targetRot = Quaternion.LookRotation(moveDir, Vector3.up);
-            Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _swimTurnSpeed * Time.fixedDeltaTime);
-            _rigidbody.MoveRotation(newRot);
+            // Rotate ONLY when RMB is held (camera steering mode)
+            if (steerWithCamera)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(moveDir, Vector3.up);
+                Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _swimTurnSpeed * Time.fixedDeltaTime);
+                _rigidbody.MoveRotation(newRot);
+            }
         }
 
         float surfaceY = GetSurfaceY() + _surfaceYOffset;
@@ -193,13 +204,14 @@ public class BeaverController : MonoBehaviour
 
         _rigidbody.MovePosition(targetPosition);
     }
-
     private void ApplyUnderwaterMovement()
     {
         _rigidbody.useGravity = false;
         SetDrag(_underwaterDrag);
 
-        if (!TryGetCameraBasis(out Vector3 forward, out Vector3 right))
+        bool steerWithCamera = IsSteeringWithCamera();
+
+        if (!TryGetMovementBasis(out Vector3 forward, out Vector3 right))
         {
             return;
         }
@@ -228,21 +240,25 @@ public class BeaverController : MonoBehaviour
 
         _rigidbody.MovePosition(targetPosition);
 
-        Vector3 flat = horizontal;
-        flat.y = 0f;
-
-        if (flat.sqrMagnitude > 0.0001f)
+        // Rotate ONLY when RMB is held (camera steering mode)
+        if (steerWithCamera)
         {
-            flat.Normalize();
-            Quaternion targetRot = Quaternion.LookRotation(flat, Vector3.up);
-            Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _underwaterTurnSpeed * Time.fixedDeltaTime);
-            _rigidbody.MoveRotation(newRot);
+            Vector3 flat = horizontal;
+            flat.y = 0f;
+
+            if (flat.sqrMagnitude > 0.0001f)
+            {
+                flat.Normalize();
+                Quaternion targetRot = Quaternion.LookRotation(flat, Vector3.up);
+                Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _underwaterTurnSpeed * Time.fixedDeltaTime);
+                _rigidbody.MoveRotation(newRot);
+            }
         }
     }
 
-    private bool TryGetCameraBasis(out Vector3 forward, out Vector3 right)
+    private bool TryGetMovementBasis(out Vector3 forward, out Vector3 right)
     {
-        Transform basis = _cameraPivot != null ? _cameraPivot : transform;
+        Transform basis = GetMovementBasis();
 
         forward = basis.forward;
         forward.y = 0f;
@@ -250,10 +266,7 @@ public class BeaverController : MonoBehaviour
         right = basis.right;
         right.y = 0f;
 
-        float fMag = forward.sqrMagnitude;
-        float rMag = right.sqrMagnitude;
-
-        if (fMag < 0.0001f || rMag < 0.0001f)
+        if (forward.sqrMagnitude < 0.0001f || right.sqrMagnitude < 0.0001f)
         {
             forward = Vector3.forward;
             right = Vector3.right;
@@ -294,5 +307,19 @@ public class BeaverController : MonoBehaviour
     private void SetDrag(float value)
     {
         _rigidbody.linearDamping = value;
+    }
+
+    private Transform GetMovementBasis()
+    {
+        if (Mouse.current != null && Mouse.current.rightButton.isPressed && _cameraPivot != null)
+        {
+            return _cameraPivot; // camera-relative only when RMB held
+        }
+
+        return transform; // otherwise, movement is relative to the beaver
+    }
+    private bool IsSteeringWithCamera()
+    {
+        return Mouse.current != null && Mouse.current.rightButton.isPressed && _cameraPivot != null;
     }
 }
