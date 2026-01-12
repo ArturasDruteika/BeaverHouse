@@ -4,6 +4,9 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(Rigidbody))]
 public class BeaverController : MonoBehaviour
 {
+    [Header("References")]
+    [SerializeField] private Transform _cameraPivot;
+
     [Header("Mode (Debug)")]
     [SerializeField] private MovementMode _mode = MovementMode.Ground;
 
@@ -79,8 +82,7 @@ public class BeaverController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // Bulletproof: sync to real keyboard each physics tick.
-        // This avoids "every second play session" stuck input if Domain Reload is off.
+        // Sync to physical keys to avoid stuck input when Domain Reload is off.
         if (Keyboard.current != null)
         {
             _diveHeld = Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed;
@@ -121,9 +123,6 @@ public class BeaverController : MonoBehaviour
             _mode = MovementMode.SwimSurface;
         }
 
-        // HOLD-TO-DIVE behavior:
-        // - If holding Ctrl at the surface -> go underwater
-        // - If underwater and near surface and not holding Ctrl -> return to surface mode
         float surfaceY = GetSurfaceY() + _surfaceYOffset;
         float distToSurface = Mathf.Abs(_rigidbody.position.y - surfaceY);
 
@@ -142,90 +141,141 @@ public class BeaverController : MonoBehaviour
         _rigidbody.useGravity = true;
         SetDrag(0f);
 
-        float forward = Mathf.Clamp(_moveInput.y, -1f, 1f);
-        float turn = Mathf.Clamp(_moveInput.x, -1f, 1f);
+        bool steerWithCamera = IsSteeringWithCamera();
 
-        ApplyTurn(turn, _groundTurnSpeed);
-        ApplyForwardMove(forward, _groundMoveSpeed);
+        if (!TryGetMovementBasis(out Vector3 forward, out Vector3 right))
+        {
+            return;
+        }
+
+        Vector3 moveDir = forward * _moveInput.y + right * _moveInput.x;
+        if (moveDir.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        moveDir.Normalize();
+
+        Vector3 delta = moveDir * (_groundMoveSpeed * Time.fixedDeltaTime);
+        _rigidbody.MovePosition(_rigidbody.position + delta);
+
+        // IMPORTANT: rotate ONLY when RMB is held (camera steering mode)
+        if (steerWithCamera)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(moveDir, Vector3.up);
+            Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _groundTurnSpeed * Time.fixedDeltaTime);
+            _rigidbody.MoveRotation(newRot);
+        }
     }
-
     private void ApplySwimSurfaceMovement()
     {
         _rigidbody.useGravity = false;
         SetDrag(_swimDrag);
 
-        float forward = Mathf.Clamp(_moveInput.y, -1f, 1f);
-        float turn = Mathf.Clamp(_moveInput.x, -1f, 1f);
+        bool steerWithCamera = IsSteeringWithCamera();
 
-        ApplyTurn(turn, _swimTurnSpeed);
+        if (!TryGetMovementBasis(out Vector3 forward, out Vector3 right))
+        {
+            return;
+        }
 
-        Vector3 targetPosition = _rigidbody.position +
-            transform.forward * (forward * _swimMoveSpeed * Time.fixedDeltaTime);
+        Vector3 moveDir = forward * _moveInput.y + right * _moveInput.x;
+
+        Vector3 targetPosition = _rigidbody.position;
+
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            moveDir.Normalize();
+
+            Vector3 delta = moveDir * (_swimMoveSpeed * Time.fixedDeltaTime);
+            targetPosition += delta;
+
+            // Rotate ONLY when RMB is held (camera steering mode)
+            if (steerWithCamera)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(moveDir, Vector3.up);
+                Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _swimTurnSpeed * Time.fixedDeltaTime);
+                _rigidbody.MoveRotation(newRot);
+            }
+        }
 
         float surfaceY = GetSurfaceY() + _surfaceYOffset;
         targetPosition.y = Mathf.Lerp(_rigidbody.position.y, surfaceY, _surfaceFollowSpeed * Time.fixedDeltaTime);
 
         _rigidbody.MovePosition(targetPosition);
     }
-
     private void ApplyUnderwaterMovement()
     {
         _rigidbody.useGravity = false;
         SetDrag(_underwaterDrag);
 
-        // Stop physics from keeping old vertical velocity (prevents "stuck sinking/rising").
-        Vector3 v = _rigidbody.linearVelocity;
-        v.y = 0f;
-        _rigidbody.linearVelocity = v;
+        bool steerWithCamera = IsSteeringWithCamera();
 
-        float forward = Mathf.Clamp(_moveInput.y, -1f, 1f);
-        float turn = Mathf.Clamp(_moveInput.x, -1f, 1f);
+        if (!TryGetMovementBasis(out Vector3 forward, out Vector3 right))
+        {
+            return;
+        }
 
-        ApplyTurn(turn, _underwaterTurnSpeed);
+        Vector3 horizontal = forward * _moveInput.y + right * _moveInput.x;
 
-        // Vertical control:
-        // - Space = up
-        // - Ctrl = down
         float vertical = 0f;
         if (_upHeld) vertical += 1f;
         if (_diveHeld) vertical -= 1f;
 
-        Vector3 movement = transform.forward * (forward * _underwaterMoveSpeed);
-        movement.y = vertical * _underwaterVerticalSpeed;
-        movement *= Time.fixedDeltaTime;
+        Vector3 moveDir = horizontal;
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            moveDir.Normalize();
+        }
 
-        Vector3 targetPosition = _rigidbody.position + movement;
+        Vector3 velocity = moveDir * _underwaterMoveSpeed;
+        velocity.y = vertical * _underwaterVerticalSpeed;
+
+        Vector3 targetPosition = _rigidbody.position + velocity * Time.fixedDeltaTime;
 
         float surfaceY = GetSurfaceY() + _surfaceYOffset;
-
         float minY = surfaceY - _maxDepth;
-        float maxY = surfaceY + _allowAboveSurface; // allow reaching surface
+        float maxY = surfaceY + _allowAboveSurface;
         targetPosition.y = Mathf.Clamp(targetPosition.y, minY, maxY);
 
         _rigidbody.MovePosition(targetPosition);
+
+        // Rotate ONLY when RMB is held (camera steering mode)
+        if (steerWithCamera)
+        {
+            Vector3 flat = horizontal;
+            flat.y = 0f;
+
+            if (flat.sqrMagnitude > 0.0001f)
+            {
+                flat.Normalize();
+                Quaternion targetRot = Quaternion.LookRotation(flat, Vector3.up);
+                Quaternion newRot = Quaternion.RotateTowards(_rigidbody.rotation, targetRot, _underwaterTurnSpeed * Time.fixedDeltaTime);
+                _rigidbody.MoveRotation(newRot);
+            }
+        }
     }
 
-    private void ApplyTurn(float turnInput, float turnSpeedDeg)
+    private bool TryGetMovementBasis(out Vector3 forward, out Vector3 right)
     {
-        if (Mathf.Abs(turnInput) < 0.0001f)
+        Transform basis = GetMovementBasis();
+
+        forward = basis.forward;
+        forward.y = 0f;
+
+        right = basis.right;
+        right.y = 0f;
+
+        if (forward.sqrMagnitude < 0.0001f || right.sqrMagnitude < 0.0001f)
         {
-            return;
+            forward = Vector3.forward;
+            right = Vector3.right;
+            return false;
         }
 
-        float deltaYaw = turnInput * turnSpeedDeg * Time.fixedDeltaTime;
-        Quaternion newRotation = Quaternion.Euler(0f, deltaYaw, 0f) * _rigidbody.rotation;
-        _rigidbody.MoveRotation(newRotation);
-    }
-
-    private void ApplyForwardMove(float forwardInput, float moveSpeed)
-    {
-        if (Mathf.Abs(forwardInput) < 0.0001f)
-        {
-            return;
-        }
-
-        Vector3 movement = transform.forward * (forwardInput * moveSpeed * Time.fixedDeltaTime);
-        _rigidbody.MovePosition(_rigidbody.position + movement);
+        forward.Normalize();
+        right.Normalize();
+        return true;
     }
 
     private float GetSurfaceY()
@@ -257,5 +307,19 @@ public class BeaverController : MonoBehaviour
     private void SetDrag(float value)
     {
         _rigidbody.linearDamping = value;
+    }
+
+    private Transform GetMovementBasis()
+    {
+        if (Mouse.current != null && Mouse.current.rightButton.isPressed && _cameraPivot != null)
+        {
+            return _cameraPivot; // camera-relative only when RMB held
+        }
+
+        return transform; // otherwise, movement is relative to the beaver
+    }
+    private bool IsSteeringWithCamera()
+    {
+        return Mouse.current != null && Mouse.current.rightButton.isPressed && _cameraPivot != null;
     }
 }
