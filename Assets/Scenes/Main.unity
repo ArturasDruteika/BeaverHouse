@@ -604,6 +604,7 @@ GameObject:
   - component: {fileID: 1674989458}
   - component: {fileID: 1674989457}
   - component: {fileID: 1674989456}
+  - component: {fileID: 1674989459}
   m_Layer: 0
   m_Name: WaterSurface
   m_TagString: Untagged
@@ -696,6 +697,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1674989454}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1674989459
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1674989454}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ba54c0ea3f9bf145b8b148c01062e32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WaterSurfaceProvider
+  _waterSurfaceTransform: {fileID: 1674989455}
 --- !u!1 &1735524187
 GameObject:
   m_ObjectHideFlags: 0
@@ -863,6 +877,7 @@ GameObject:
   - component: {fileID: 2126446288}
   - component: {fileID: 2126446294}
   - component: {fileID: 2126446295}
+  - component: {fileID: 2126446296}
   m_Layer: 0
   m_Name: Beaver
   m_TagString: Untagged
@@ -883,22 +898,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   _cameraPivot: {fileID: 2050203600}
+  _waterSurfaceProvider: {fileID: 1674989459}
   _mode: 0
-  _groundMoveSpeed: 5
-  _groundTurnSpeed: 360
-  _swimMoveSpeed: 7
-  _swimTurnSpeed: 360
-  _surfaceFollowSpeed: 8
-  _surfaceYOffset: 0
-  _swimDrag: 2.5
-  _underwaterMoveSpeed: 6
-  _underwaterTurnSpeed: 140
-  _underwaterVerticalSpeed: 4
-  _underwaterDrag: 3.5
-  _maxDepth: 1000
-  _surfaceExitDistance: 0.2
-  _allowAboveSurface: 0.05
-  _waterSurfaceTransform: {fileID: 1674989455}
+  _settings:
+    GroundMoveSpeed: 5
+    GroundTurnSpeed: 180
+    SwimMoveSpeed: 7
+    SwimTurnSpeed: 140
+    SurfaceFollowSpeed: 8
+    SurfaceYOffset: 0
+    SwimDrag: 2.5
+    UnderwaterMoveSpeed: 6
+    UnderwaterTurnSpeed: 140
+    UnderwaterVerticalSpeed: 4
+    UnderwaterDrag: 3.5
+    MaxDepth: 8
+    SurfaceExitDistance: 0.25
+    AllowAboveSurface: 0.05
 --- !u!54 &2126446289
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1070,6 +1086,18 @@ MonoBehaviour:
   _splashCooldownSeconds: 0.12
   _spawnHeightOffset: 0.02
   _maxDistanceFromSurfaceToSplash: 0.35
+--- !u!114 &2126446296
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2126446287}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b70df449fa94d79439090d9924e218a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BeaverWaterSensor
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
