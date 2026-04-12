@@ -1,22 +1,24 @@
 # Unity generated folders
 Library/
 Temp/
-Obj/
+obj/
 Logs/
 MemoryCaptures/
 
 # Builds
 Build/
 Builds/
+*.apk
+*.aab
+*.unitypackage
 
 # User-specific
-UserSettings/EditorUserSettings.asset
+UserSettings/
 
 # IDE
 .vs/
 .vscode/
 .idea/
-.vscode/
 .history/
 
 # Unity auto-generated files
@@ -28,6 +30,8 @@ UserSettings/EditorUserSettings.asset
 *.tmp
 *.user
 *.userprefs
+*.pidb
+*.booproj
 
 # OS junk
 .DS_Store
@@ -36,5 +40,8 @@ Thumbs.db
 # Upgrade logs
 UpgradeLog*
 
-# User settings
-UserSettings/
+# Addressables / cache
+ServerData/
+
+# Recovery
+Assets/_Recovery/
